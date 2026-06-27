@@ -935,71 +935,26 @@ const generatedImgWrapper = document.getElementById('generatedImgWrapper');
 const generatedImg = document.getElementById('generatedImg');
 const downloadImgLink = document.getElementById('downloadImgLink');
 
-generateImgBtn.addEventListener('click', async () => {
+generateImgBtn.addEventListener('click', () => {
   const prompt = imagePromptInput.value.trim();
-  const apiKey = apiKeyInput.value.trim();
-
   if (!prompt) {
     statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
     return;
   }
 
   generateImgBtn.disabled = true;
+  statusEl.textContent = "Generando imagen con IA...";
   generatedImgWrapper.style.display = 'none';
 
-  let finalPrompt = prompt;
-
-  // Si hay API Key de Groq, usamos su conocimiento para enriquecer el prompt
-  // (identificar personajes de anime/manga/videojuegos/series y describirlos con detalle visual)
-  if (apiKey) {
-    statusEl.textContent = "Analizando descripción con IA (identificando personajes/estilo)...";
-    try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + apiKey
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content: "Eres un experto en anime, manga, videojuegos (especialmente FromSoftware), webnovels y cultura pop en general, y también un experto en prompts para modelos de generación de imágenes (estilo Stable Diffusion). " +
-                "El usuario te dará una descripción corta, que puede incluir nombres de personajes, series, juegos o estilos específicos que tú SÍ conoces a fondo. " +
-                "Tu tarea: reescribe la descripción como un prompt detallado en INGLÉS para un generador de imágenes, incluyendo: apariencia física exacta del personaje si lo reconoces (color de pelo, ropa, armas, accesorios icónicos), estilo artístico apropiado (anime, dark fantasy, realista, pixel art, etc según corresponda), iluminación, composición y ambiente. " +
-                "Si no reconoces algún nombre o referencia, simplemente descríbelo de forma genérica coherente sin inventar datos falsos. " +
-                "Responde ÚNICAMENTE con el prompt final en inglés, sin explicaciones, sin comillas, sin texto adicional."
-            },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.6
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const enriched = data.choices?.[0]?.message?.content?.trim();
-        if (enriched) finalPrompt = enriched;
-      }
-    } catch (e) {
-      // si falla el enriquecimiento, seguimos con el prompt original
-    }
-  }
-
-  statusEl.textContent = "Generando imagen con IA...";
-
   const seed = Math.floor(Math.random() * 1000000);
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=768&height=768&seed=${seed}&nologo=true`;
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true`;
 
   const tempImg = new Image();
   tempImg.onload = () => {
     generatedImg.src = url;
     downloadImgLink.href = url;
     generatedImgWrapper.style.display = 'block';
-    statusEl.textContent = apiKey
-      ? "✅ Imagen generada (prompt enriquecido con conocimiento de la IA)."
-      : "✅ Imagen generada. Tip: agrega tu API Key (⚙️) para que la IA reconozca personajes específicos.";
+    statusEl.textContent = "✅ Imagen generada.";
     generateImgBtn.disabled = false;
   };
   tempImg.onerror = () => {
