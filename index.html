@@ -316,7 +316,6 @@
   }
   .compare-label.ai { background: rgba(127,90,240,0.2); color: #b9a3ff; }
   .compare-label.google { background: rgba(66,133,244,0.2); color: #8ab4f8; }
-  .compare-label.mymemory { background: rgba(44,182,125,0.2); color: #7fe0b4; }
   #explainBtn {
     background: rgba(255,255,255,0.1);
     font-size: 0.85rem;
@@ -388,7 +387,7 @@
   </div>
 
   <div class="compare-toggle" id="compareToggle">
-    <span>🔬 Modo Comparación (IA vs Google vs DeepL)</span>
+    <span>🔬 Modo Comparación (IA vs Google)</span>
     <label class="switch">
       <input type="checkbox" id="compareCheckbox">
       <span class="slider"></span>
@@ -411,14 +410,21 @@
         <div class="result-box compare-box" id="resultGoogle">...</div>
         <button type="button" class="speak-mini" data-target="google">🔊 Escuchar</button>
       </div>
-      <div class="compare-col">
-        <div class="compare-label mymemory">🟩 MyMemory</div>
-        <div class="result-box compare-box" id="resultMyMemory">...</div>
-        <button type="button" class="speak-mini" data-target="mymemory">🔊 Escuchar</button>
-      </div>
     </div>
     <button type="button" id="explainBtn" style="margin-top:14px; display:none;">❓ ¿Por qué son distintas las traducciones/pronunciaciones?</button>
     <div class="result-box" id="explainBox" style="display:none;"></div>
+  </div>
+
+  <hr style="border-color: rgba(255,255,255,0.1); margin: 26px 0;">
+
+  <label for="imagePrompt">🎨 Generador de Imágenes IA</label>
+  <textarea id="imagePrompt" placeholder="Describe la imagen que quieres generar... ej: un dragón en un castillo gótico al atardecer"></textarea>
+  <button type="button" id="generateImgBtn">✨ Generar Imagen</button>
+  <div id="generatedImgWrapper" style="display:none; text-align:center; margin-top:14px;">
+    <img id="generatedImg" style="max-width:100%; border-radius:12px; border:1px solid rgba(255,255,255,0.15);">
+    <div style="margin-top:10px;">
+      <a id="downloadImgLink" download="imagen-generada.png" style="display:inline-block; padding:10px 18px; border-radius:8px; background:rgba(255,255,255,0.1); color:#fff; text-decoration:none; font-size:0.85rem;">⬇ Descargar imagen</a>
+    </div>
   </div>
 
   <div class="controls">
@@ -676,18 +682,10 @@ const googleCodeMap = {
   "chino mandarín": "zh-CN", "ruso": "ru"
 };
 
-// Código para MyMemory (gratuito, sin key)
-const mymemoryCodeMap = {
-  "inglés": "en", "español": "es", "francés": "fr", "alemán": "de",
-  "italiano": "it", "portugués": "pt", "japonés": "ja", "coreano": "ko",
-  "chino mandarín": "zh-CN", "ruso": "ru"
-};
-
 const compareCheckbox = document.getElementById('compareCheckbox');
 const compareResults = document.getElementById('compareResults');
 const resultAI = document.getElementById('resultAI');
 const resultGoogle = document.getElementById('resultGoogle');
-const resultMyMemory = document.getElementById('resultMyMemory');
 const explainBtn = document.getElementById('explainBtn');
 const explainBox = document.getElementById('explainBox');
 
@@ -703,7 +701,7 @@ compareCheckbox.addEventListener('change', () => {
   }
 });
 
-const lastTranslations = { ai: "", google: "", mymemory: "" };
+const lastTranslations = { ai: "", google: "" };
 
 document.querySelectorAll('.speak-mini').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -719,16 +717,6 @@ async function translateWithGoogle(text, targetCode) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
   return data[0].map(part => part[0]).join("");
-}
-
-async function translateWithMyMemory(text, targetCode) {
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=auto|${targetCode}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  const translated = data.responseData?.translatedText;
-  if (!translated) throw new Error("Sin respuesta de MyMemory");
-  return translated;
 }
 
 explainBtn.addEventListener('click', async () => {
@@ -747,9 +735,8 @@ Idioma destino: ${targetLang.value}
 
 Traducción 1 (IA - Groq): "${lastTranslations.ai}"
 Traducción 2 (Google Translate): "${lastTranslations.google}"
-Traducción 3 (MyMemory): "${lastTranslations.mymemory}"
 
-Explica en español, de forma breve y clara (máximo 5-6 frases, en viñetas si ayuda), por qué estas tres traducciones pueden diferir entre sí en palabras elegidas, tono, formalidad o estructura, y por qué la pronunciación al leerlas en voz alta también podría sonar distinta (acentos regionales, ritmo, elección de sinónimos, etc). No repitas las traducciones completas, solo explica las diferencias clave.`;
+Explica en español, de forma breve y clara (máximo 5-6 frases, en viñetas si ayuda), por qué estas dos traducciones pueden diferir entre sí en palabras elegidas, tono, formalidad o estructura, y por qué la pronunciación al leerlas en voz alta también podría sonar distinta (acentos regionales, ritmo, elección de sinónimos, etc). No repitas las traducciones completas, solo explica las diferencias clave.`;
 
     const explanation = await (async () => {
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -889,16 +876,14 @@ translateBtn.addEventListener('click', async () => {
   explainBox.style.display = 'none';
 
   if (compareCheckbox.checked) {
-    // ---- MODO COMPARACIÓN: IA (Groq) vs Google Translate vs MyMemory ----
-    statusEl.textContent = "Comparando traducciones (IA, Google, MyMemory)...";
+    // ---- MODO COMPARACIÓN: IA (Groq) vs Google Translate ----
+    statusEl.textContent = "Comparando traducciones (IA vs Google)...";
     resultAI.textContent = "Traduciendo...";
     resultGoogle.textContent = "Traduciendo...";
-    resultMyMemory.textContent = "Traduciendo...";
 
-    const [aiRes, googleRes, myMemoryRes] = await Promise.allSettled([
+    const [aiRes, googleRes] = await Promise.allSettled([
       translateWithGroq(text, lang, apiKey),
-      translateWithGoogle(text, mymemoryCodeMap[lang] || "en"),
-      translateWithMyMemory(text, mymemoryCodeMap[lang] || "en")
+      translateWithGoogle(text, googleCodeMap[lang] || "en")
     ]);
 
     if (aiRes.status === 'fulfilled') {
@@ -916,13 +901,6 @@ translateBtn.addEventListener('click', async () => {
       lastTranslations.google = googleRes.value;
     } else {
       resultGoogle.innerHTML = `<span class="error">${googleRes.reason.message}</span>`;
-    }
-
-    if (myMemoryRes.status === 'fulfilled') {
-      resultMyMemory.textContent = myMemoryRes.value;
-      lastTranslations.mymemory = myMemoryRes.value;
-    } else {
-      resultMyMemory.innerHTML = `<span class="error">${myMemoryRes.reason.message}</span>`;
     }
 
     statusEl.textContent = "✅ Comparación lista. Reproduciendo voz de nuestra IA...";
@@ -948,6 +926,42 @@ translateBtn.addEventListener('click', async () => {
   } finally {
     translateBtn.disabled = false;
   }
+});
+
+// ---- Generador de Imágenes IA (Pollinations.ai - gratis, sin API key) ----
+const imagePromptInput = document.getElementById('imagePrompt');
+const generateImgBtn = document.getElementById('generateImgBtn');
+const generatedImgWrapper = document.getElementById('generatedImgWrapper');
+const generatedImg = document.getElementById('generatedImg');
+const downloadImgLink = document.getElementById('downloadImgLink');
+
+generateImgBtn.addEventListener('click', () => {
+  const prompt = imagePromptInput.value.trim();
+  if (!prompt) {
+    statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
+    return;
+  }
+
+  generateImgBtn.disabled = true;
+  statusEl.textContent = "Generando imagen con IA...";
+  generatedImgWrapper.style.display = 'none';
+
+  const seed = Math.floor(Math.random() * 1000000);
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true`;
+
+  const tempImg = new Image();
+  tempImg.onload = () => {
+    generatedImg.src = url;
+    downloadImgLink.href = url;
+    generatedImgWrapper.style.display = 'block';
+    statusEl.textContent = "✅ Imagen generada.";
+    generateImgBtn.disabled = false;
+  };
+  tempImg.onerror = () => {
+    statusEl.innerHTML = '<span class="error">Error generando la imagen. Intenta de nuevo.</span>';
+    generateImgBtn.disabled = false;
+  };
+  tempImg.src = url;
 });
 </script>
 
