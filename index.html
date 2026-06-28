@@ -792,8 +792,16 @@ function loadVoices() {
 
 function autoSelectVoiceForLang() {
   const code = langCodeMap[targetLang.value] || "en";
-  const idx = availableVoices.findIndex(v => v.lang.toLowerCase().startsWith(code));
-  if (idx !== -1) voiceLangSelect.value = idx;
+  const matches = availableVoices
+    .map((v, i) => ({ v, i }))
+    .filter(({ v }) => v.lang.toLowerCase().startsWith(code));
+
+  if (matches.length === 0) return;
+
+  // Preferimos voces de Google sobre cualquier otra (Microsoft, etc.)
+  const googleMatch = matches.find(({ v }) => v.name.toLowerCase().includes('google'));
+  const chosen = googleMatch || matches[0];
+  voiceLangSelect.value = chosen.i;
 }
 
 speechSynthesis.onvoiceschanged = loadVoices;
