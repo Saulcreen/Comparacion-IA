@@ -4,6 +4,15 @@
 // nunca en el navegador del usuario ni en el código subido a GitHub.
 
 export default async function handler(req, res) {
+  // Permite que tu sitio en GitHub Pages llame a este backend en Vercel
+  res.setHeader('Access-Control-Allow-Origin', 'https://saulcreen.github.io');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: { message: 'Método no permitido' } });
@@ -15,7 +24,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: { message: 'Faltan "model" o "messages" en el body' } });
   }
 
-  // Soporta hasta 2 keys por si la primera falla o se queda sin cuota
+  // Soporta hasta 2 keys por si la primera falla o se queda sin cuota (mismo patrón de fallback que PeynTur)
   const keys = [process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_2].filter(Boolean);
 
   if (keys.length === 0) {
@@ -42,6 +51,7 @@ export default async function handler(req, res) {
         return res.status(200).json(data);
       }
 
+      // Si fue error de auth/cuota, probamos la siguiente key; si fue otro error, lo devolvemos igual
       lastError = await groqRes.json().catch(() => ({ error: { message: `HTTP ${groqRes.status}` } }));
     } catch (err) {
       lastError = { error: { message: err.message } };
