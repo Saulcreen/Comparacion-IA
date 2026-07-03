@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Traductor IA con Voz - Groq</title>
+<title>Traductor IA con Voz</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -49,7 +49,7 @@
     margin-bottom: 6px;
     margin-top: 14px;
   }
-  input[type="password"], textarea, select {
+  textarea, select {
     width: 100%;
     padding: 12px;
     border-radius: 10px;
@@ -129,12 +129,6 @@
     background: rgba(255,255,255,0.06);
     border-color: #7f5af0;
   }
-  .upload-area img {
-    max-width: 100%;
-    max-height: 180px;
-    border-radius: 8px;
-    margin-top: 10px;
-  }
   #scanBtn {
     margin-top: 10px;
     background: rgba(255,255,255,0.1);
@@ -145,73 +139,6 @@
     justify-content: center;
     gap: 8px;
     position: relative;
-  }
-  .gear-btn {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 1.2rem;
-    margin: 0;
-    padding: 0;
-    transition: transform 0.2s, background 0.2s;
-    flex-shrink: 0;
-  }
-  .gear-btn:hover {
-    background: rgba(255,255,255,0.18);
-    transform: rotate(25deg);
-  }
-  .gear-btn.has-key {
-    background: rgba(44,182,125,0.25);
-    border-color: #2cb67d;
-  }
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal-box {
-    background: #1c1b33;
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 14px;
-    padding: 24px;
-    max-width: 420px;
-    width: 100%;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  }
-  .modal-box h3 {
-    margin: 0 0 6px 0;
-    font-size: 1.1rem;
-  }
-  .modal-box p {
-    margin: 0 0 14px 0;
-    font-size: 0.8rem;
-    color: #999;
-  }
-  .modal-actions {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
-  }
-  .modal-actions button {
-    margin-top: 0;
-  }
-  .modal-actions .secondary {
-    background: rgba(255,255,255,0.1);
   }
   .image-wrapper {
     position: relative;
@@ -345,7 +272,6 @@
 <div class="card">
   <div class="header-row">
     <h1>🌐 Traductor IA con Voz</h1>
-    <button type="button" class="gear-btn" id="gearBtn" title="Configurar API Key">⚙️</button>
   </div>
   <div class="subtitle">Powered by Groq API + Web Speech API</div>
 
@@ -435,22 +361,7 @@
   <div class="status" id="status"></div>
 </div>
 
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal-box">
-    <h3>⚙️ Configuración</h3>
-    <p>Tus API Keys se guardan solo en este navegador (localStorage) y nunca se envían a ningún servidor distinto del de cada proveedor.</p>
-    <label for="apiKey">API Key de Groq (nuestra IA)</label>
-    <input type="password" id="apiKey" placeholder="gsk_...">
-
-    <div class="modal-actions">
-      <button type="button" class="secondary" id="closeModalBtn">Cerrar</button>
-      <button type="button" id="saveKeyBtn">Guardar</button>
-    </div>
-  </div>
-</div>
-
 <script>
-const apiKeyInput = document.getElementById('apiKey');
 const inputText = document.getElementById('inputText');
 const targetLang = document.getElementById('targetLang');
 const voiceLangSelect = document.getElementById('voiceLang');
@@ -469,39 +380,21 @@ const removeImgBtn = document.getElementById('removeImgBtn');
 const scanBtn = document.getElementById('scanBtn');
 const imageInfoBox = document.getElementById('imageInfoBox');
 
-const gearBtn = document.getElementById('gearBtn');
-const modalOverlay = document.getElementById('modalOverlay');
-const closeModalBtn = document.getElementById('closeModalBtn');
-const saveKeyBtn = document.getElementById('saveKeyBtn');
-
 let selectedImageBase64 = null;
 
-// ---- Configuración / API Key (modal con engranaje) ----
-function updateGearState() {
-  if (apiKeyInput.value.trim()) {
-    gearBtn.classList.add('has-key');
-    gearBtn.title = "API Key configurada ✓ (clic para editar)";
-  } else {
-    gearBtn.classList.remove('has-key');
-    gearBtn.title = "Configurar API Key";
+// ---- Llamada genérica al backend (la API key vive solo en Vercel) ----
+async function callGroq(model, messages, temperature = 0.3) {
+  const response = await fetch('/api/groq', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, temperature })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || `Error HTTP ${response.status}`);
   }
+  return data;
 }
-
-const savedKey = localStorage.getItem('groq_api_key');
-if (savedKey) apiKeyInput.value = savedKey;
-updateGearState();
-
-gearBtn.addEventListener('click', () => modalOverlay.classList.add('open'));
-closeModalBtn.addEventListener('click', () => modalOverlay.classList.remove('open'));
-modalOverlay.addEventListener('click', (e) => {
-  if (e.target === modalOverlay) modalOverlay.classList.remove('open');
-});
-saveKeyBtn.addEventListener('click', () => {
-  localStorage.setItem('groq_api_key', apiKeyInput.value.trim());
-  updateGearState();
-  modalOverlay.classList.remove('open');
-  statusEl.textContent = "✅ API Key guardada.";
-});
 
 // ---- Subida de imagen: clic, drag&drop y pegar (Ctrl+V) ----
 uploadArea.addEventListener('click', (e) => {
@@ -526,7 +419,6 @@ imageInput.addEventListener('change', (e) => {
   if (e.target.files.length) handleImageFile(e.target.files[0]);
 });
 
-// Pegar imagen desde el portapapeles (Ctrl+V) en cualquier parte de la página
 document.addEventListener('paste', (e) => {
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -567,7 +459,7 @@ function handleImageFile(file) {
   }
   const reader = new FileReader();
   reader.onload = (e) => {
-    selectedImageBase64 = e.target.result; // data:image/...;base64,xxxx
+    selectedImageBase64 = e.target.result;
     imagePreview.src = selectedImageBase64;
     imageWrapper.style.display = 'inline-block';
     uploadLabel.style.display = 'none';
@@ -578,11 +470,6 @@ function handleImageFile(file) {
 }
 
 scanBtn.addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
-  if (!apiKey) {
-    statusEl.innerHTML = '<span class="error">⚠ Ingresa tu API Key de Groq</span>';
-    return;
-  }
   if (!selectedImageBase64) {
     statusEl.innerHTML = '<span class="error">⚠ Selecciona o pega una imagen primero</span>';
     return;
@@ -593,41 +480,28 @@ scanBtn.addEventListener('click', async () => {
   statusEl.textContent = "Analizando imagen con IA (Groq Vision)...";
 
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + apiKey
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Analiza esta imagen y responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`), con exactamente estas claves:\n" +
-                "\"descripcion\": una descripción clara y detallada en español de qué es la imagen, qué objetos/personas/escena contiene (2-4 frases).\n" +
-                "\"texto_detectado\": todo el texto visible en la imagen tal cual aparece, sin traducir. Si no hay ningún texto, pon una cadena vacía \"\"."
-              },
-              {
-                type: "image_url",
-                image_url: { url: selectedImageBase64 }
-              }
-            ]
-          }
-        ],
-        temperature: 0.2
-      })
-    });
+    const data = await callGroq(
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Analiza esta imagen y responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin \`\`\`), con exactamente estas claves:\n" +
+              "\"descripcion\": una descripción clara y detallada en español de qué es la imagen, qué objetos/personas/escena contiene (2-4 frases).\n" +
+              "\"texto_detectado\": todo el texto visible en la imagen tal cual aparece, sin traducir. Si no hay ningún texto, pon una cadena vacía \"\"."
+            },
+            {
+              type: "image_url",
+              image_url: { url: selectedImageBase64 }
+            }
+          ]
+        }
+      ],
+      0.2
+    );
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error?.message || `Error HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
     let raw = data.choices?.[0]?.message?.content?.trim() || "{}";
     raw = raw.replace(/```json|```/g, "").trim();
 
@@ -661,21 +535,12 @@ scanBtn.addEventListener('click', async () => {
 
 let lastTranslation = "";
 
-// Mapear nombre de idioma -> código BCP47 aproximado para elegir voz
 const langCodeMap = {
-  "inglés": "en",
-  "español": "es",
-  "francés": "fr",
-  "alemán": "de",
-  "italiano": "it",
-  "portugués": "pt",
-  "japonés": "ja",
-  "coreano": "ko",
-  "chino mandarín": "zh",
-  "ruso": "ru"
+  "inglés": "en", "español": "es", "francés": "fr", "alemán": "de",
+  "italiano": "it", "portugués": "pt", "japonés": "ja", "coreano": "ko",
+  "chino mandarín": "zh", "ruso": "ru"
 };
 
-// Código para Google Translate (gratuito, sin key)
 const googleCodeMap = {
   "inglés": "en", "español": "es", "francés": "fr", "alemán": "de",
   "italiano": "it", "portugués": "pt", "japonés": "ja", "coreano": "ko",
@@ -720,11 +585,6 @@ async function translateWithGoogle(text, targetCode) {
 }
 
 explainBtn.addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
-  if (!apiKey) {
-    statusEl.innerHTML = '<span class="error">⚠ Ingresa tu API Key de Groq (⚙️)</span>';
-    return;
-  }
   explainBtn.disabled = true;
   explainBox.style.display = 'block';
   explainBox.textContent = "Analizando las diferencias...";
@@ -738,31 +598,16 @@ Traducción 2 (Google Translate): "${lastTranslations.google}"
 
 Explica en español, de forma breve y clara (máximo 5-6 frases, en viñetas si ayuda), por qué estas dos traducciones pueden diferir entre sí en palabras elegidas, tono, formalidad o estructura, y por qué la pronunciación al leerlas en voz alta también podría sonar distinta (acentos regionales, ritmo, elección de sinónimos, etc). No repitas las traducciones completas, solo explica las diferencias clave.`;
 
-    const explanation = await (async () => {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + apiKey
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: "Eres un lingüista experto explicando diferencias entre traducciones de forma breve y didáctica." },
-            { role: "user", content: prompt }
-          ],
-          temperature: 0.5
-        })
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `Error HTTP ${response.status}`);
-      }
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content?.trim() || "No se pudo generar la explicación.";
-    })();
+    const data = await callGroq(
+      "llama-3.3-70b-versatile",
+      [
+        { role: "system", content: "Eres un lingüista experto explicando diferencias entre traducciones de forma breve y didáctica." },
+        { role: "user", content: prompt }
+      ],
+      0.5
+    );
 
-    explainBox.textContent = explanation;
+    explainBox.textContent = data.choices?.[0]?.message?.content?.trim() || "No se pudo generar la explicación.";
   } catch (err) {
     explainBox.innerHTML = `<span class="error">Error: ${err.message}</span>`;
   } finally {
@@ -798,7 +643,6 @@ function autoSelectVoiceForLang() {
 
   if (matches.length === 0) return;
 
-  // Preferimos voces de Google sobre cualquier otra (Microsoft, etc.)
   const googleMatch = matches.find(({ v }) => v.name.toLowerCase().includes('google'));
   const chosen = googleMatch || matches[0];
   voiceLangSelect.value = chosen.i;
@@ -838,42 +682,25 @@ speakBtn.addEventListener('click', () => {
   if (lastTranslation) speakText(lastTranslation);
 });
 
-async function translateWithGroq(text, lang, apiKey) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + apiKey
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        {
-          role: "system",
-          content: `Eres un traductor profesional. Traduce el texto del usuario al idioma: ${lang}. Responde ÚNICAMENTE con la traducción, sin explicaciones, comillas ni texto adicional.`
-        },
-        { role: "user", content: text }
-      ],
-      temperature: 0.3
-    })
-  });
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `Error HTTP ${response.status}`);
-  }
-  const data = await response.json();
+async function translateWithGroq(text, lang) {
+  const data = await callGroq(
+    "llama-3.3-70b-versatile",
+    [
+      {
+        role: "system",
+        content: `Eres un traductor profesional. Traduce el texto del usuario al idioma: ${lang}. Responde ÚNICAMENTE con la traducción, sin explicaciones, comillas ni texto adicional.`
+      },
+      { role: "user", content: text }
+    ],
+    0.3
+  );
   return data.choices?.[0]?.message?.content?.trim() || "(sin respuesta)";
 }
 
 translateBtn.addEventListener('click', async () => {
-  const apiKey = apiKeyInput.value.trim();
   const text = inputText.value.trim();
   const lang = targetLang.value;
 
-  if (!apiKey) {
-    statusEl.innerHTML = '<span class="error">⚠ Ingresa tu API Key de Groq (⚙️)</span>';
-    return;
-  }
   if (!text) {
     statusEl.innerHTML = '<span class="error">⚠ Escribe un texto para traducir</span>';
     return;
@@ -884,13 +711,12 @@ translateBtn.addEventListener('click', async () => {
   explainBox.style.display = 'none';
 
   if (compareCheckbox.checked) {
-    // ---- MODO COMPARACIÓN: IA (Groq) vs Google Translate ----
     statusEl.textContent = "Comparando traducciones (IA vs Google)...";
     resultAI.textContent = "Traduciendo...";
     resultGoogle.textContent = "Traduciendo...";
 
     const [aiRes, googleRes] = await Promise.allSettled([
-      translateWithGroq(text, lang, apiKey),
+      translateWithGroq(text, lang),
       translateWithGoogle(text, googleCodeMap[lang] || "en")
     ]);
 
@@ -917,12 +743,11 @@ translateBtn.addEventListener('click', async () => {
     return;
   }
 
-  // ---- MODO NORMAL: solo nuestra IA (Groq) ----
   statusEl.textContent = "Traduciendo con IA (Groq)...";
   resultBox.textContent = "...";
 
   try {
-    const translated = await translateWithGroq(text, lang, apiKey);
+    const translated = await translateWithGroq(text, lang);
     lastTranslation = translated;
     resultBox.textContent = translated;
     statusEl.textContent = "✅ Traducción completa. Reproduciendo voz...";
