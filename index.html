@@ -341,18 +341,6 @@
     <div class="result-box" id="explainBox" style="display:none;"></div>
   </div>
 
-  <hr style="border-color: rgba(255,255,255,0.1); margin: 26px 0;">
-
-  <label for="imagePrompt">🎨 Generador de Imágenes IA</label>
-  <textarea id="imagePrompt" placeholder="Describe la imagen que quieres generar... ej: un dragón en un castillo gótico al atardecer"></textarea>
-  <button type="button" id="generateImgBtn">✨ Generar Imagen</button>
-  <div id="generatedImgWrapper" style="display:none; text-align:center; margin-top:14px;">
-    <img id="generatedImg" style="max-width:100%; border-radius:12px; border:1px solid rgba(255,255,255,0.15);">
-    <div style="margin-top:10px;">
-      <a id="downloadImgLink" download="imagen-generada.png" style="display:inline-block; padding:10px 18px; border-radius:8px; background:rgba(255,255,255,0.1); color:#fff; text-decoration:none; font-size:0.85rem;">⬇ Descargar imagen</a>
-    </div>
-  </div>
-
   <div class="controls">
     <button id="speakBtn" disabled>🔊 Repetir voz</button>
     <button id="stopBtn" disabled>⏹ Detener</button>
@@ -763,64 +751,6 @@ translateBtn.addEventListener('click', async () => {
   }
 });
 
-// ---- Generador de Imágenes IA (Pollinations.ai) con reintentos automáticos ----
-const imagePromptInput = document.getElementById('imagePrompt');
-const generateImgBtn = document.getElementById('generateImgBtn');
-const generatedImgWrapper = document.getElementById('generatedImgWrapper');
-const generatedImg = document.getElementById('generatedImg');
-const downloadImgLink = document.getElementById('downloadImgLink');
-
-async function fetchImageWithRetry(url, maxRetries = 3) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await new Promise((resolve, reject) => {
-        const img = new Image();
-        const timer = setTimeout(() => reject(new Error('timeout')), 15000);
-        img.onload = () => {
-          clearTimeout(timer);
-          resolve();
-        };
-        img.onerror = () => {
-          clearTimeout(timer);
-          reject(new Error('load failed'));
-        };
-        img.src = url;
-      });
-      return url; // funcionó
-    } catch (err) {
-      if (attempt === maxRetries) throw err;
-      statusEl.textContent = `Intento ${attempt} falló, reintentando...`;
-      await new Promise(r => setTimeout(r, 1500 * attempt)); // espera creciente: 1.5s, 3s
-    }
-  }
-}
-
-generateImgBtn.addEventListener('click', async () => {
-  const prompt = imagePromptInput.value.trim();
-  if (!prompt) {
-    statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
-    return;
-  }
-
-  generateImgBtn.disabled = true;
-  statusEl.textContent = "Generando imagen con IA...";
-  generatedImgWrapper.style.display = 'none';
-
-  const seed = Math.floor(Math.random() * 1000000);
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&model=flux`;
-
-  try {
-    const finalUrl = await fetchImageWithRetry(url, 3);
-    generatedImg.src = finalUrl;
-    downloadImgLink.href = finalUrl;
-    generatedImgWrapper.style.display = 'block';
-    statusEl.textContent = "✅ Imagen generada.";
-  } catch (err) {
-    statusEl.innerHTML = '<span class="error">⏱ El servicio está saturado ahora mismo. Intenta de nuevo en un momento.</span>';
-  } finally {
-    generateImgBtn.disabled = false;
-  }
-});
 </script>
 
 </body>
