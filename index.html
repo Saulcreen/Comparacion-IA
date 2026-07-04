@@ -763,7 +763,7 @@ translateBtn.addEventListener('click', async () => {
   }
 });
 
-// ---- Generador de Imágenes IA (Pollinations.ai - gratis, sin API key) ----
+// ---- Generador de Imágenes IA (Pollinations.ai) ----
 const imagePromptInput = document.getElementById('imagePrompt');
 const generateImgBtn = document.getElementById('generateImgBtn');
 const generatedImgWrapper = document.getElementById('generatedImgWrapper');
@@ -773,29 +773,49 @@ const downloadImgLink = document.getElementById('downloadImgLink');
 generateImgBtn.addEventListener('click', () => {
   const prompt = imagePromptInput.value.trim();
   if (!prompt) {
-    statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
+    if (typeof statusEl !== 'undefined') {
+      statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
+    }
     return;
   }
 
   generateImgBtn.disabled = true;
-  statusEl.textContent = "Generando imagen con IA...";
+  if (typeof statusEl !== 'undefined') {
+    statusEl.textContent = "Generando imagen con IA...";
+  }
   generatedImgWrapper.style.display = 'none';
 
   const seed = Math.floor(Math.random() * 1000000);
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true`;
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true&model=flux`;
 
   const tempImg = new Image();
   tempImg.onload = () => {
     generatedImg.src = url;
     downloadImgLink.href = url;
     generatedImgWrapper.style.display = 'block';
-    statusEl.textContent = "✅ Imagen generada.";
+    if (typeof statusEl !== 'undefined') {
+      statusEl.textContent = "✅ Imagen generada.";
+    }
     generateImgBtn.disabled = false;
   };
+  
   tempImg.onerror = () => {
-    statusEl.innerHTML = '<span class="error">Error generando la imagen. Intenta de nuevo.</span>';
+    if (typeof statusEl !== 'undefined') {
+      statusEl.innerHTML = '<span class="error">Error generando la imagen. Intenta de nuevo.</span>';
+    }
     generateImgBtn.disabled = false;
   };
+  
+  // Agregar timeout por si la imagen tarda mucho
+  setTimeout(() => {
+    if (generateImgBtn.disabled) {
+      if (typeof statusEl !== 'undefined') {
+        statusEl.innerHTML = '<span class="error">⏱ Timeout. Intenta con otro prompt.</span>';
+      }
+      generateImgBtn.disabled = false;
+    }
+  }, 30000); // 30 segundos
+  
   tempImg.src = url;
 });
 </script>
