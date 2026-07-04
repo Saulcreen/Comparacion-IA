@@ -763,60 +763,63 @@ translateBtn.addEventListener('click', async () => {
   }
 });
 
-// ---- Generador de Imágenes IA (Pollinations.ai) ----
+// ---- Generador de Imágenes IA (Pollinations.ai) con reintentos automáticos ----
 const imagePromptInput = document.getElementById('imagePrompt');
 const generateImgBtn = document.getElementById('generateImgBtn');
 const generatedImgWrapper = document.getElementById('generatedImgWrapper');
 const generatedImg = document.getElementById('generatedImg');
 const downloadImgLink = document.getElementById('downloadImgLink');
 
-generateImgBtn.addEventListener('click', () => {
+async function fetchImageWithRetry(url, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        const timer = setTimeout(() => reject(new Error('timeout')), 15000);
+        img.onload = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        img.onerror = () => {
+          clearTimeout(timer);
+          reject(new Error('load failed'));
+        };
+        img.src = url;
+      });
+      return url; // funcionó
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      statusEl.textContent = `Intento ${attempt} falló, reintentando...`;
+      await new Promise(r => setTimeout(r, 1500 * attempt)); // espera creciente: 1.5s, 3s
+    }
+  }
+}
+
+generateImgBtn.addEventListener('click', async () => {
   const prompt = imagePromptInput.value.trim();
   if (!prompt) {
-    if (typeof statusEl !== 'undefined') {
-      statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
-    }
+    statusEl.innerHTML = '<span class="error">⚠ Escribe una descripción para la imagen</span>';
     return;
   }
 
   generateImgBtn.disabled = true;
-  if (typeof statusEl !== 'undefined') {
-    statusEl.textContent = "Generando imagen con IA...";
-  }
+  statusEl.textContent = "Generando imagen con IA...";
   generatedImgWrapper.style.display = 'none';
 
   const seed = Math.floor(Math.random() * 1000000);
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&nologo=true&model=flux`;
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&seed=${seed}&model=flux`;
 
-  const tempImg = new Image();
-  tempImg.onload = () => {
-    generatedImg.src = url;
-    downloadImgLink.href = url;
+  try {
+    const finalUrl = await fetchImageWithRetry(url, 3);
+    generatedImg.src = finalUrl;
+    downloadImgLink.href = finalUrl;
     generatedImgWrapper.style.display = 'block';
-    if (typeof statusEl !== 'undefined') {
-      statusEl.textContent = "✅ Imagen generada.";
-    }
+    statusEl.textContent = "✅ Imagen generada.";
+  } catch (err) {
+    statusEl.innerHTML = '<span class="error">⏱ El servicio está saturado ahora mismo. Intenta de nuevo en un momento.</span>';
+  } finally {
     generateImgBtn.disabled = false;
-  };
-  
-  tempImg.onerror = () => {
-    if (typeof statusEl !== 'undefined') {
-      statusEl.innerHTML = '<span class="error">Error generando la imagen. Intenta de nuevo.</span>';
-    }
-    generateImgBtn.disabled = false;
-  };
-  
-  // Agregar timeout por si la imagen tarda mucho
-  setTimeout(() => {
-    if (generateImgBtn.disabled) {
-      if (typeof statusEl !== 'undefined') {
-        statusEl.innerHTML = '<span class="error">⏱ Timeout. Intenta con otro prompt.</span>';
-      }
-      generateImgBtn.disabled = false;
-    }
-  }, 30000); // 30 segundos
-  
-  tempImg.src = url;
+  }
 });
 </script>
 
