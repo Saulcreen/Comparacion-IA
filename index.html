@@ -383,8 +383,7 @@ const imageInfoBox = document.getElementById('imageInfoBox');
 let selectedImageBase64 = null;
 
 // ---- Llamada genérica al backend (la API key vive solo en Vercel) ----
-// URL completa porque este archivo puede vivir en GitHub Pages (dominio distinto al backend)
-const GROQ_BACKEND_URL = 'https://comparacion-ia-five.vercel.app/api/groq';
+const GROQ_BACKEND_URL = 'https://comparacion-ia-4s5t.vercel.app/api/groq';
 
 async function callGroq(model, messages, temperature = 0.3) {
   const response = await fetch(GROQ_BACKEND_URL, {
